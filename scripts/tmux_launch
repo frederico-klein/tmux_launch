@@ -3,6 +3,7 @@
 import argparse
 import rosparam
 import roslaunch
+import rosmaster
 import rospkg
 import glob
 import os
@@ -58,16 +59,24 @@ while (len(launch_file_list)>0):
             print(ff)
 #!but_recursive!  get it ! not... it is not necessary to make it recursive. it is smart after all.
 
+should_kill_self = False
+my_master = None
+try:
+    rosparam.set_param_raw("is_running", True)
+except:
+    should_kill_self = True
+    my_master = rosmaster.master.Master()
+    my_master.start()
+tsm = TSM()
+##todo detect if there is a roscore and only open if there isnt
+tsm.create_session(session_name=os.path.splitext(args.second_arg)[0])#, initial_command = "roscore")
+
 ## dumps all the parameters, hopefully in the right place
 for p in config.params.values():
     print(f"<<<<param {p}>>>>>>\n")
     rosparam.set_param_raw(p.key, p.value)
 
 ##TODO: since it does the recursion already, this logic can be simplified quite a bit
-
-tsm = TSM()
-##todo detect if there is a roscore and only open if there isnt
-tsm.create_session(session_name=os.path.splitext(args.second_arg)[0], initial_command = "roscore")
 
 
 for i, (lfile, nodelist) in enumerate(all_nodes.items()):
@@ -94,3 +103,6 @@ print(launch_file)
 print(all_nodes)
 
 tsm.attach()
+
+if should_kill_self:
+    my_master.stop()
