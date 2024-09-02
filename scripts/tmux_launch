@@ -9,100 +9,147 @@ import glob
 import os
 from tmux_launch.tmux_session_manager import TmuxManager as TSM
 
-##wtf
-_ID = '/roslaunch'
 
-
-
-parser = argparse.ArgumentParser(description="My Script Description")
-parser.add_argument("first_arg", help="First argument description")
-parser.add_argument("second_arg", help="Second argument description")
-args = parser.parse_args()
-
-
-print(args.first_arg, args.second_arg)
-
-rospack = rospkg.RosPack()
-the_package = rospack.get_path(args.first_arg)
-
-launch_file = None
-for f in glob.glob(os.path.join(the_package, "**/*.launch" ), recursive=True):
-    if args.second_arg in f:
-        launch_file = f
-        break
-    #print(f)
-
-
-all_nodes = {}
-all_includes = []
-launch_file_list = []
-launch_file_list.append(launch_file)
-
-traversed_list = []
-
-while (len(launch_file_list)>0):
-
-    launch_file = launch_file_list.pop(0)
-    print("trying to open %s"%launch_file)
-    traversed_list.append(launch_file)
-    loader = roslaunch.xmlloader.XmlLoader()
-    config = roslaunch.config.ROSLaunchConfig()
-    loader.load(launch_file, config, verbose=False)
-
-    all_nodes.update({launch_file:config.nodes})
-
-    break
-    for ff in config.roslaunch_files:
-        print(ff)
-        if not ff in traversed_list: 
-            launch_file_list.append(ff)
-            print(ff)
-#!but_recursive!  get it ! not... it is not necessary to make it recursive. it is smart after all.
-
-should_kill_self = False
-my_master = None
 try:
-    rosparam.set_param_raw("is_running", True)
-except:
-    should_kill_self = True
-    my_master = rosmaster.master.Master()
-    my_master.start()
-tsm = TSM()
-##todo detect if there is a roscore and only open if there isnt
-tsm.create_session(session_name=os.path.splitext(args.second_arg)[0])#, initial_command = "roscore")
-
-## dumps all the parameters, hopefully in the right place
-for p in config.params.values():
-    print(f"<<<<param {p}>>>>>>\n")
-    rosparam.set_param_raw(p.key, p.value)
-
-##TODO: since it does the recursion already, this logic can be simplified quite a bit
+    ##wtf
+    _ID = '/roslaunch'
 
 
-for i, (lfile, nodelist) in enumerate(all_nodes.items()):
-    this_window_name = os.path.splitext(os.path.basename(lfile))[0]
-    tw = tsm.new_tab(window_name=this_window_name)
-    if len(nodelist) <= 4:
-        tsm.default_splits4(window_handle=tw)
-    elif len(nodelist) <= 8:
-        tsm.default_splits8(window_handle=tw)
-    elif len(nodelist) > 8:
-        raise("Not implemented")
 
-    for j, node in enumerate(nodelist):
-        node_xml = node.to_xml()
-        my_node_temp_launch_file = f"/tmp/w{i:02}n{j:02}.launch" 
+    parser = argparse.ArgumentParser(description="My Script Description")
+    parser.add_argument("first_arg", help="First argument description")
+    parser.add_argument("second_arg", help="Second argument description")
+    args = parser.parse_args()
 
-        create_command = f"<launch>{node_xml}</launch>"
-        with open(my_node_temp_launch_file,"w") as afile:
-            afile.write(create_command)
-        tw.panes[j].send_keys(f"roslaunch {my_node_temp_launch_file}",enter =True)   
 
-print(launch_file)
+    print(args.first_arg, args.second_arg)
 
-print(all_nodes)
+    rospack = rospkg.RosPack()
+    the_package = rospack.get_path(args.first_arg)
 
-tsm.attach()
+    launch_file = None
+    for f in glob.glob(os.path.join(the_package, "**/*.launch" ), recursive=True):
+        if args.second_arg in f:
+            launch_file = f
+            break
+        #print(f)
 
-if should_kill_self:
-    my_master.stop()
+
+    all_nodes = {}
+    all_includes = []
+    launch_file_list = []
+    launch_file_list.append(launch_file)
+
+    traversed_list = []
+
+
+    ## this was easier in my head than it is in reality
+
+    level = 0
+
+    while (len(launch_file_list)>0):
+
+        launch_file = launch_file_list.pop(0)
+        print("trying to open %s"%launch_file)
+        traversed_list.append(launch_file)
+        loader = roslaunch.xmlloader.XmlLoader()
+        config = roslaunch.config.ROSLaunchConfig()
+        loader.load(launch_file, config, verbose=False)
+
+        all_nodes.update({launch_file:config.nodes})
+
+        #print(dir(config.nodes[0]))
+        #exit()
+        
+        #break
+        for ff in config.roslaunch_files:
+            #print(ff)
+            if not ff in traversed_list: 
+                launch_file_list.append(ff)
+                print(ff)
+    #!but_recursive!  get it ! not... it is not necessary to make it recursive. it is smart after all.
+
+    should_kill_self = False
+    my_master = None
+    try:
+        rosparam.set_param_raw("is_running", True)
+    except:
+        should_kill_self = True
+        my_master = rosmaster.master.Master()
+        my_master.start()
+    tsm = TSM()
+    ##todo detect if there is a roscore and only open if there isnt
+    tsm.create_session(session_name=os.path.splitext(args.second_arg)[0])#, initial_command = "roscore")
+
+    ## dumps all the parameters, hopefully in the right place
+    for p in config.params.values():
+        print(f"<<<<param {p}>>>>>>\n")
+        rosparam.set_param_raw(p.key, p.value)
+
+    ##TODO: since it does the recursion already, this logic can be simplified quite a bit
+
+
+    unique_load_list = [] ## prevents nodes from being loaded twice, also will load it on earliest possible level
+    for i, (lfile, nodelist) in enumerate(all_nodes.items()):
+        for j, node in enumerate(nodelist):
+            actual_node_name = node.namespace+node.name
+            #print(dir(node))
+            #print(node.name)
+            #print(node.process_name)
+            #print(node.namespace)
+            print(actual_node_name)
+            if actual_node_name in unique_load_list:
+                continue
+            else:
+                unique_load_list.append(actual_node_name)
+        break
+    for i, (lfile, nodelist) in enumerate(all_nodes.items()):
+        if i==0:
+            continue
+
+        this_window_name = os.path.splitext(os.path.basename(lfile))[0]
+        actual_number_of_nodes = 0
+        for node in nodelist:
+            if node.namespace+node.name in unique_load_list:
+                actual_number_of_nodes+=1
+        if actual_number_of_nodes == 0:
+            continue
+        tw = tsm.new_tab(window_name=this_window_name)
+        if actual_number_of_nodes <= 4:
+            tsm.default_splits4(window_handle=tw)
+        elif actual_number_of_nodes <= 8:
+            tsm.default_splits8(window_handle=tw)
+        elif actual_number_of_nodes > 8:
+            print(lfile)
+            print(nodelist)
+            raise(Exception("I don't know how to run so many nodes yet. Not implemented"))
+
+        j = 0
+        for node in nodelist:
+            actual_node_name = node.namespace+node.name
+            print(actual_node_name)
+            if actual_node_name in unique_load_list:
+                unique_load_list.remove(actual_node_name)
+                node_xml = node.to_xml()
+                my_node_temp_launch_file = f"/tmp/w{i:02}n{j:02}.launch" 
+
+                create_command = f"<launch>{node_xml}</launch>"
+                with open(my_node_temp_launch_file,"w") as afile:
+                    afile.write(create_command)
+                #continue
+                print(j)
+                print(actual_number_of_nodes)
+
+                tw.panes[j].send_keys(f"roslaunch {my_node_temp_launch_file}",enter =True)   
+                j+=1
+
+    print(launch_file)
+
+    print(all_nodes)
+
+    tsm.attach()
+
+    if should_kill_self:
+        my_master.stop()
+finally:
+    tsm.kill_session() 

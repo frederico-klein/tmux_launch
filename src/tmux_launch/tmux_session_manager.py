@@ -70,6 +70,9 @@ class TmuxManager:
         for w in self.created_windows:
             w.kill()
 
+    def kill_session(self):
+        self.close_own_windows()
+        self.session.kill_session()
 
 def create_some_windows(window_dic={},some_manager=TmuxManager()):
     k = len(some_manager.session.windows)
