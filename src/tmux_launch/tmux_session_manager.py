@@ -12,20 +12,23 @@ window_dic_ ={"aaaa":["echo 1","echo 2", "echo 3"],
 start_directory="/catkin_ws/src/ros_biomech"
 
 class TmuxManager:
-    def __init__(self,session_name="test"):
+    def __init__(self,session_name="test", first_window_name="roscore"):
         self.name = session_name
         self.created_windows = []
         self.srv = libtmux.Server()
-        self.default_window_name = "roscore"
+        self.default_window_name = first_window_name
         self.session = None
         self.is_main_manager = None
+        if len(self.srv.sessions) == 0:
+            self.is_main_manager = True
+            return
+        self.is_main_manager = False
         for a_session in self.srv.sessions:
             if a_session.name == self.name:
                 self.session = a_session
-                self.is_main_manager = False
         ## this doesnt work
         #self.srv.cmd('set-option' ,'-g', 'default-shell', '"/usr/bin/bash","--rcfile","~/.bashrc_ws.sh"')
-    def create_session(self, session_name=None, initial_command=None):
+    def create_session(self, session_name=None, initial_command=None, do_initial_split=True):
         #self.srv.cmd('new-session', '-d', '-P', '-F#{session_id}','-n',self.name).stdout[0]
         if session_name:
             self.name = session_name
@@ -37,11 +40,15 @@ class TmuxManager:
             self.session.active_window.active_pane.send_keys(initial_command, enter=True)
         else:
             rospy.logwarn_once("no initial command set")
-        self.close_pane = self.session.active_window.split_window(vertical=True)
+        self.close_pane = self.session.active_pane
+        if do_initial_split:
+            self.close_pane = self.session.active_window.split_window(vertical=True)
         #self.close_pane.send_keys("rosrun tmux_session_core close_tmux_button.py", enter=True)
         self.is_main_manager = True
 
     def new_tab(self,window_name=""):
+        if self.is_main_manager and len(self.srv.sessions) == 0:
+            self.create_session()
         my_new_window = self.session.new_window(window_name, start_directory=start_directory)
         self.created_windows.append(my_new_window)
         return my_new_window
@@ -74,19 +81,21 @@ class TmuxManager:
         return wh
 
     def close_own_windows(self):
-        rospy.loginfo("Closing all windows")
-        for w in self.created_windows:
-            if not w:
-                continue
-            for p in w.panes:
-                p.send_keys("C-c", enter=True)
-                ## I hope it will close eventually...
-            w.kill()
+        if self.srv.sessions:
+            rospy.loginfo("Closing all windows")
+            for w in self.created_windows:
+                if not w:
+                    continue
+                for p in w.panes:
+                    p.send_keys("C-c", enter=True)
+                    ## I hope it will close eventually...
+                w.kill()
 
     def kill_session(self):
         self.close_own_windows()
-        rospy.loginfo("Attempting to kill own session")
-        self.session.kill_session()
+        if self.session and self.srv.sessions:
+            rospy.loginfo("Attempting to kill own session")
+            self.session.kill_session()
 
     ##def __del__(self):
     def cleanup(self):
