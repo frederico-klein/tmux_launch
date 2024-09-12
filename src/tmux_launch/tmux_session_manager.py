@@ -5,7 +5,7 @@ import tkinter as tk
 from time import sleep
 import libtmux
 import rospy
-
+import encodings
 window_dic_ ={"aaaa":["echo 1","echo 2", "echo 3"],
         "bbbb":["echo 4","echo 5"]}
 
@@ -17,6 +17,12 @@ class TmuxManager:
         self.created_windows = []
         self.srv = libtmux.Server()
         self.default_window_name = "roscore"
+        self.session = None
+        self.is_main_manager = None
+        for a_session in self.srv.sessions:
+            if a_session.name == self.name:
+                self.session = a_session
+                self.is_main_manager = False
         ## this doesnt work
         #self.srv.cmd('set-option' ,'-g', 'default-shell', '"/usr/bin/bash","--rcfile","~/.bashrc_ws.sh"')
     def create_session(self, session_name=None, initial_command=None):
@@ -33,6 +39,7 @@ class TmuxManager:
             rospy.logwarn_once("no initial command set")
         self.close_pane = self.session.active_window.split_window(vertical=True)
         #self.close_pane.send_keys("rosrun tmux_session_core close_tmux_button.py", enter=True)
+        self.is_main_manager = True
 
     def new_tab(self,window_name=""):
         my_new_window = self.session.new_window(window_name, start_directory=start_directory)
@@ -67,12 +74,29 @@ class TmuxManager:
         return wh
 
     def close_own_windows(self):
+        rospy.loginfo("Closing all windows")
         for w in self.created_windows:
+            if not w:
+                continue
+            for p in w.panes:
+                p.send_keys("C-c", enter=True)
+                ## I hope it will close eventually...
             w.kill()
 
     def kill_session(self):
         self.close_own_windows()
+        rospy.loginfo("Attempting to kill own session")
         self.session.kill_session()
+
+    ##def __del__(self):
+    def cleanup(self):
+        if self.is_main_manager:
+            self.kill_session()
+        else: ## then I just want to kill the windows I have created
+            self.close_own_windows()
+
+        #rospy.loginfo("Goodbye!")
+        
 
 def create_some_windows(window_dic={},some_manager=TmuxManager()):
     k = len(some_manager.session.windows)
