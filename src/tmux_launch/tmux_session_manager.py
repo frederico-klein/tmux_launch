@@ -12,13 +12,15 @@ window_dic_ ={"aaaa":["echo 1","echo 2", "echo 3"],
 start_directory="/catkin_ws/src/ros_biomech"
 
 class TmuxManager:
-    def __init__(self,session_name="test", first_window_name="roscore"):
+    def __init__(self,session_name="test", first_window_name="roscore", load_env={}):
         self.name = session_name
         self.created_windows = []
         self.srv = libtmux.Server()
         self.default_window_name = first_window_name
+        self.load_env = load_env
         self.session = None
         self.is_main_manager = None
+        rospy.logwarn_once(load_env)
         if len(self.srv.sessions) == 0:
             self.is_main_manager = True
             return
@@ -113,11 +115,17 @@ def create_some_windows(window_dic={},some_manager=TmuxManager()):
         some_manager.new_tab(keys)
         #a.newsplit()
         window_index = i+k
-        pp = some_manager.default_splits8(num=window_index)
+        if len(values) <=4:
+            pp = some_manager.default_splits4(num=window_index)
+        else:
+            pp = some_manager.default_splits8(num=window_index)
         #print(pp)
 
         for j,cmd in enumerate(values):
             #print(cmd)
+            rospy.loginfo("loading the part that should load the envs!"+str(some_manager.load_env))
+            for keys, values in some_manager.load_env.items():
+                pp.panes[j].send_keys(f"export {keys}={values}", enter=True)
             pp.panes[j].send_keys(cmd, enter=True)
 
     pp.select()

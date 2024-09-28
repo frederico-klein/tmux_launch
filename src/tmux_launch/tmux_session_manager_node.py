@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import rospy
-from acquisition_of_raw_data.tmux_session_manager import *
+from tmux_launch.tmux_session_manager import *
 
 
 if __name__ == "__main__":
