@@ -6,6 +6,8 @@ from time import sleep
 import libtmux
 import rospy
 import encodings
+import traceback
+
 window_dic_ ={"aaaa":["echo 1","echo 2", "echo 3"],
         "bbbb":["echo 4","echo 5"]}
 
@@ -110,25 +112,30 @@ class TmuxManager:
         
 
 def create_some_windows(window_dic={},some_manager=TmuxManager()):
-    k = len(some_manager.session.windows)
-    for i, (keys, values) in enumerate(window_dic.items()):
-        some_manager.new_tab(keys)
-        #a.newsplit()
-        window_index = i+k
-        if len(values) <=4:
-            pp = some_manager.default_splits4(num=window_index)
-        else:
-            pp = some_manager.default_splits8(num=window_index)
-        #print(pp)
+    try:
+        k = len(some_manager.session.windows)
+        for i, (keys, values) in enumerate(window_dic.items()):
+            some_manager.new_tab(keys)
+            #a.newsplit()
+            window_index = i+k
+            if len(values) <=4:
+                pp = some_manager.default_splits4(num=window_index)
+            else:
+                pp = some_manager.default_splits8(num=window_index)
+            #print(pp)
 
-        for j,cmd in enumerate(values):
-            #print(cmd)
-            rospy.loginfo("loading the part that should load the envs!"+str(some_manager.load_env))
-            for keys, values in some_manager.load_env.items():
-                pp.panes[j].send_keys(f"export {keys}={values}", enter=True)
-            pp.panes[j].send_keys(cmd, enter=True)
+            if type(values) != type(list()):
+                raise Exception(f"Wrong type used for window commands. I was expecting a list, not {type(values)}")
+            for j,cmd in enumerate(values):
+                #print(cmd)
+                rospy.loginfo("loading the part that should load the envs!"+str(some_manager.load_env))
+                for keys, values in some_manager.load_env.items():
+                    pp.panes[j].send_keys(f"export {keys}={values}", enter=True)
+                pp.panes[j].send_keys(cmd, enter=True)
 
-    pp.select()
+        pp.select()
+    except:
+        traceback.print_exc()
 
 if __name__ == "__main__":
     print("being executed!")
