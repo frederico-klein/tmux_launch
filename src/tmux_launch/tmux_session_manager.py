@@ -118,13 +118,20 @@ def create_some_windows(window_dic={},some_manager=TmuxManager()):
             some_manager.new_tab(keys)
             #a.newsplit()
             window_index = i+k
-            if len(values) <=4:
+            if len(values) == 1:
+                pp = some_manager.session.windows[window_index]
+            elif len(values) <=4:
                 pp = some_manager.default_splits4(num=window_index)
             else:
                 pp = some_manager.default_splits8(num=window_index)
             #print(pp)
 
+            if type(values) == type(""):
+                rospy.logwarn("I was expecting a list, but got a string. I will assume you want only one command in this window.\nNote: you should write it down as a list because I need to know beforehand how many commands are going to be executed in this window, so I can divide it properly!")
+
+                values = [values]
             if type(values) != type(list()):
+                rospy.logerr("The syntax for this dictionary is a bit weird, for each window (the key), I am expecting a list of commands which are going to be exectuted.")
                 raise Exception(f"Wrong type used for window commands. I was expecting a list, not {type(values)}")
             for j,cmd in enumerate(values):
                 #print(cmd)
