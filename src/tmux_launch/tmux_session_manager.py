@@ -11,6 +11,10 @@ import traceback
 window_dic_ ={"aaaa":["echo 1","echo 2", "echo 3"],
         "bbbb":["echo 4","echo 5"]}
 
+BOLD  = "\033[1m"
+ITALIC  = "\x1B[3m"
+RESET = "\033[0;0m"
+
 start_directory="/catkin_ws/src/ros_biomech"
 
 class TmuxManager:
@@ -39,11 +43,11 @@ class TmuxManager:
 
         self.session = self.srv.new_session(self.name,start_directory=start_directory, window_name=self.default_window_name)
         if initial_command:
-            rospy.loginfo("initial_command:%s"%initial_command)
+            rospy.loginfo(f"Initial command: {ITALIC}{initial_command}{RESET}")
             self.session.from_session_id
             self.session.active_window.active_pane.send_keys(initial_command, enter=True)
         else:
-            rospy.logwarn_once("no initial command set")
+            rospy.logwarn_once("No initial command set.")
         self.close_pane = self.session.active_pane
         if do_initial_split:
             self.close_pane = self.session.active_window.split_window(vertical=True)
