@@ -63,6 +63,15 @@ class TmuxManager:
 
         self.session.cmd('split-window','-h')
 
+    def default_splits2(self,num=0, window_handle = None):
+
+        if not window_handle:
+            window_handle = self.session.windows[num]
+
+        pane0 = window_handle.active_pane.split_window()
+
+        return window_handle
+
     def default_splits4(self,num=0, window_handle = None):
 
         if not window_handle:
@@ -115,15 +124,15 @@ def create_some_windows(window_dic={},some_manager=TmuxManager()):
     try:
         k = len(some_manager.session.windows)
         for i, (keys, values) in enumerate(window_dic.items()):
-            some_manager.new_tab(keys)
-            #a.newsplit()
-            window_index = i+k
+            pp = some_manager.new_tab(keys)
             if len(values) == 1:
-                pp = some_manager.session.windows[window_index]
+                pass
+            elif len(values) ==2:
+                some_manager.default_splits2(window_handle=pp)
             elif len(values) <=4:
-                pp = some_manager.default_splits4(num=window_index)
+                some_manager.default_splits4(window_handle=pp)
             else:
-                pp = some_manager.default_splits8(num=window_index)
+                some_manager.default_splits8(window_handle=pp)
             #print(pp)
 
             if type(values) == type(""):
